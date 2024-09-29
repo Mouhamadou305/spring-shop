@@ -29,4 +29,13 @@ public class Product {
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true /*Any image not referencing a product should be removed*/)
     private List<Image> images;
+
+    public Product(String name, String description, BigDecimal price, int inventory, String brand, Category category) {
+        this.brand = brand;
+        this.category = category;
+        this.name = name;
+        this.description = description;
+        this.price = price;
+        this.inventory = inventory;
+    }
 }

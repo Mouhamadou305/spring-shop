@@ -1,24 +1,54 @@
 package sn.kane.springshop.service.product;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import sn.kane.springshop.exception.ProductNotFoundException;
+import sn.kane.springshop.model.Category;
+import sn.kane.springshop.model.Image;
 import sn.kane.springshop.model.Product;
+import sn.kane.springshop.repository.CategoryRepository;
 import sn.kane.springshop.repository.ProductRepository;
+import sn.kane.springshop.request.AddProductRequest;
+import sn.kane.springshop.request.UpdateProductRequest;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor //build a constructor implementing the final properties like productRepository
 public class ProductService implements  IProductService{
 
     private final ProductRepository productRepository;
+    private final CategoryRepository categoryRepository;
 
-    public ProductService(ProductRepository productRepository){
-        this.productRepository =productRepository;
-    }
+    //Replaced by @RequiredArgsConstructor
+//    public ProductService(ProductRepository productRepository){
+//        this.productRepository =productRepository;
+//    }
 
     @Override
-    public Product addProduct(Product product) {
-        return productRepository.save(product);
+    public Product addProduct(AddProductRequest productRequest) {
+        Category category = Optional.ofNullable(categoryRepository.findByName(productRequest.getCategory().getName())).orElseGet(
+                () -> {
+                    Category newCategory = new Category(productRequest.getCategory().getName());
+                    return categoryRepository.save(newCategory);
+                }
+        );
+        productRequest.setCategory(category);
+        return productRepository.save(createProduct(productRequest));
+    }
+
+    private Product createProduct(AddProductRequest productRequest){
+        return new Product(
+                productRequest.getName(),
+                productRequest.getDescription(),
+                productRequest.getPrice(),
+                productRequest.getInventory(),
+                productRequest.getBrand(),
+                productRequest.getCategory()
+        );
     }
 
     @Override
@@ -29,12 +59,28 @@ public class ProductService implements  IProductService{
     @Override
     public void deleteProduct(Long id) {
         productRepository.findById(id).ifPresentOrElse(productRepository::delete,
-                () -> throw new ProductNotFoundException("Product not found"));
+                () ->{throw new ProductNotFoundException("Product not found");});
     }
 
     @Override
-    public void updateProduct(Product product, Long productId) {
+    public Product updateProduct(UpdateProductRequest product, Long productId) {
+        return productRepository.findById(productId)
+                .map(existingProduct -> updateExistingProduct(existingProduct, product))
+                .map(productRepository::save)
+                .orElseThrow(()-> new ProductNotFoundException("Product not found!"));
+    }
 
+    private Product updateExistingProduct(Product existingProduct, UpdateProductRequest req){
+        existingProduct.setName(req.getName());
+        existingProduct.setBrand(req.getBrand());
+        existingProduct.setDescription(req.getDescription());
+        existingProduct.setPrice(req.getPrice());
+        existingProduct.setInventory(req.getInventory());
+
+        Category category = categoryRepository.findByName(req.getCategory().getName());
+        existingProduct.setCategory(category);
+
+        return existingProduct;
     }
 
     @Override
